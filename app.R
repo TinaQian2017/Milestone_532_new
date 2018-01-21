@@ -1,0 +1,211 @@
+library(shiny)
+library(tidyverse)
+library(forcats)
+
+# Data cleaning
+
+# import data
+data<-read.csv("https://raw.github.ubc.ca/ubc-mds-2017/DSCI_532_milestone1_qyue2014/master/data/marshall/ucr_crime_1975_2015.csv?token=AAADszx30g6sUEv5VEhvsCn44iJBnQOaks5ablAWwA%3D%3D")
+
+# exclude data I do not want
+# I need ORI, year, department_name, and normalized crime data 
+data<-data[c(-4,-5,-6,-7,-8,-9,-16,-17)]
+
+# remove Nas
+data<-na.omit(data)
+
+# To keep consistency, I remove incomplete records that did not report crime for all 12 months
+# in a given year 
+data<-filter(data,months_reported==12)
+
+# Since ORI (the first two letters are the abbreviation of states) records the states cities belong to,
+# so I use information in the ORI column to group cities.
+
+library(stringi)
+
+data$ORI<-as.character(data$ORI)
+data$state<-sapply(data$ORI,function(x) stri_sub(x,from = 1,to=2))
+data$state<-factor(data$state)
+
+# Again, exclude features that I do not want: months_reported
+data<-data[-4]
+
+# nlevels(data$state) # Among 50 states, we have records from 32 states and Washington, D.C.
+# those states are "AZ" "CA" "CO" "DC" "FL" "GA" "HI" "IL" "IN" "KS" "KY" "LA"
+# "MA" "MD" "MI" "MN" "MO" "NB" "NC" "NJ" "NM" "NV" "NY" "OH" "OK" "OR" "PA"
+# "TN" "TX" "UT" "VA" "WA" "WI"
+
+# check what is "NB"
+# filter(data, state=="NB") # By checking with website, I find that the "NB" is actually "NE"
+data$state <- as.character(data$state)
+data$state[data$state == "NB"] <- "NE"
+data$state <- factor(data$state)
+
+crime<-data
+
+# get data to make the map
+library(maps)
+usa_states<-map_data("state")
+usa_states<-usa_states[-6]
+
+# need to reset wd here
+sabbr<-read.csv("https://raw.githubusercontent.com/TinaQian2017/532_milstone/master/states_abbr.csv",header = T)
+sabbr$region<-as.character(sabbr$region)
+mapindex<-left_join(usa_states,sabbr)
+mapdata<-full_join(mapindex,data)
+
+# change headers
+names(mapdata)[11:14]<-c('Homicides', 'Rape', 'Robbery', 'Aggravated_Assault')
+names(crime)[5:8]<-c('Homicides', 'Rape', 'Robbery', 'Aggravated_Assault')
+
+# Define UI ----
+ui <- navbarPage("Crime Rate in the U.S.A", 
+                 
+                 tabPanel("Map",
+                          sidebarLayout(
+                            sidebarPanel(width=4,
+                                         h3("Choice of Inputs"),
+                                         br(),
+                                         # checkbox input - pick crime type
+                                         checkboxGroupInput("checkbox",h4("Crime Type"),
+                                                            choices=c('Homicides', 'Rape', 'Robbery', 'Aggravated_Assault'),
+                                                            selected = 'Homicides'),
+                                         # slider input
+                                         sliderInput("slider1", h4("Year"),
+                                                     min = 1975, max = 2014, value = c(1975,2014))
+                            ),
+                            # Showing the plot
+                            mainPanel(h3("Crime Rate in The U.S.A"),
+                                      plotOutput("themap"),
+                                      p("Note: The crime rate is calculated by dividing
+                         the number of crimes by population, recording the number of crime per 100k people.")
+                            )
+                            
+                 )
+                 ),       
+                 
+                 tabPanel("Data Explore",
+                  sidebarLayout(
+                   sidebarPanel(width=4,
+                                h3("Choice of Inputs"),
+                                br(),
+                                h4("Weight for Homicides"),
+                                
+                                p("Assign weight to different type of crimes"),
+                                strong("The sum of weights should be 1"),
+                                
+                                # numeric input
+                                numericInput("weightho", "",
+                                             
+                                             min = 0, max = 1, value = 0.7, step = 0.05),
+                                numericInput("weightra", "Weight for Rape",
+                                             min = 0, max = 1, value = 0.1, step = 0.05),
+                                numericInput("weightro", "Weight for Robbery",
+                                             min = 0, max = 1, value = 0.1, step = 0.05),
+                                numericInput("weightag", "Weight for Aggravated Assault",
+                                             min = 0, max = 1, value = 0.1, step = 0.05),
+                                br(),
+                                
+                                # slider input
+                                sliderInput("slider2", h4("Year"),
+                                            min = 1975, max = 2014, value = c(1975,2014)),
+                                # checkbox input - pick crime type
+                                checkboxGroupInput("checkbox2",h4("States"),
+                                                   choices=unique(crime$state),
+                                                   selected = unique(crime$state))
+                   ),
+                   # Showing the plot
+                   mainPanel(
+                       h3("Overall Rating"),
+                       plotOutput("theplot1"),
+                       p("The larger the risk score is, the more dangerous the state is.
+                         The score is the mean of the product of real crime rate and the weight you assign"),
+                       h3("Real Record"),
+                       plotOutput("theplot2"),
+                       p("The plot shows the real record of crime rates."),
+                       p("Note: The crime rate is calculated by dividing
+                         the number of crimes by population, recording the number of crime per 100k people.")
+                 )
+                  )
+                 )
+)
+                          
+                          
+                  
+
+# Define server logic ----
+server <- function(input, output) {
+  output$themap<-renderPlot({
+
+    
+    data<-mapdata %>% 
+      filter(year %in% input$slider1)
+    
+    newdf=data%>%select(input$checkbox)
+    data$Crime_Rate=apply(newdf,1,function(x) sum(x))
+    
+    ggplot(data) +
+      geom_polygon(aes(x = long, y = lat, group = group, fill = Crime_Rate )) +
+                     labs(x="Longitude",y="Latitude")+
+                     scale_fill_distiller(palette="Blues",direction=1)+
+      theme_bw()
+      
+    
+})
+    
+    output$theplot1<-renderPlot({
+      data2<-crime %>%
+        filter(year %in% input$slider2)%>%
+        filter(state %in% input$checkbox2)
+      
+      data2$Homicides<-data2$Homicides*input$weightho
+      data2$Rape<-data2$Rape*input$weightra
+      data2$Robbery<-data2$Robbery*input$weightro
+      data2$Aggravated_Assault<-data2$Aggravated_Assault*input$weightag
+      
+      # calculate scores
+      scores<-data2 %>% group_by(state)%>%summarise(mean=mean(Homicides)+mean(Rape)+mean(Robbery)+mean(Aggravated_Assault))
+      scores$state<-factor(scores$state)
+      
+      ggplot(scores,aes(x=fct_reorder(state,mean),y=mean))+geom_point()+
+        labs(x="State",y="Risk Scores")
+    })
+    
+    output$theplot2<-renderPlot({
+      data2<-crime %>%
+        filter(year %in% input$slider2) %>%
+        filter(state %in% input$checkbox2)
+      
+      data2$Homicides<-data2$Homicides*input$weightho
+      data2$Rape<-data2$Rape*input$weightra
+      data2$Robbery<-data2$Robbery*input$weightro
+      data2$Aggravated_Assault<-data2$Aggravated_Assault*input$weightag
+      
+      # calculate scores
+      scores<-data2 %>% group_by(state)%>%summarise(mean=mean(Homicides)+mean(Rape)+mean(Robbery)+mean(Aggravated_Assault))
+      scores$state<-factor(scores$state)
+      
+      # real data
+      data3<-crime %>%
+        filter(year %in% input$slider2) %>%
+        filter(state %in% input$checkbox2)
+      
+      index=c()
+      if (input$weightho!=0) index<-append(index,"Homicides")
+      if (input$weightra!=0) index<-append(index,"Rape")
+      if (input$weightro!=0) index<-append(index,"Robbery")
+      if (input$weightag!=0) index<-append(index,"Aggravated_Assault")
+
+      newdf2<-data3%>%select(index)
+      data3$new<-apply(newdf2,1,function(x) sum(x))
+      data4<-left_join(data3,scores,by="state")
+      
+      ggplot(data4,aes(x=fct_reorder(state,mean)))+geom_boxplot(aes(y=new))+
+        labs(x="State",y="Real Crime Rate According to Records")
+        
+    })
+  
+}
+
+# Run the app ----
+shinyApp(ui = ui, server = server)
