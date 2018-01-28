@@ -59,6 +59,11 @@ mapdata<-full_join(mapindex,data)
 names(mapdata)[11:14]<-c('Homicides', 'Rape', 'Robbery', 'Aggravated_Assault')
 names(crime)[5:8]<-c('Homicides', 'Rape', 'Robbery', 'Aggravated_Assault')
 
+# prepare data to add labels in map
+label<-mapdata %>% group_by(state) %>% summarise(y=mean(lat),x=mean(long))
+label$state[48]<-"ND"
+
+
 # Define UI ----
 ui <- navbarPage("Crime Rate in the U.S.A", 
                  
@@ -71,9 +76,10 @@ ui <- navbarPage("Crime Rate in the U.S.A",
                                          checkboxGroupInput("checkbox",h4("Crime Type"),
                                                             choices=c('Homicides', 'Rape', 'Robbery', 'Aggravated_Assault'),
                                                             selected = 'Homicides'),
+                                         p("The app will sum up the crime rate of different crime types that you choose."),
                                          # slider input
                                          sliderInput("slider1", h4("Year"),
-                                                     min = 1975, max = 2014, value = c(1975,2014))
+                                                     min = 1975, max = 2014, value = c(1975,2014),sep="")
                             ),
                             # Showing the plot
                             mainPanel(h3("Crime Rate in The U.S.A"),
@@ -92,7 +98,9 @@ ui <- navbarPage("Crime Rate in the U.S.A",
                                 br(),
                                 h4("Weight for Crimes"),
                                 
-                                p("Assign weight to different type of crimes. Feel free to assign "),
+                                p("Assign weight to different type of crimes. Feel free to assign any 
+                                  values to different crime types since the weights will be standardized. However,
+                                 it is more institutive to sum the weights up to 1 or 100."),
                                 strong("The sum of weights should be 1"),
                                 
                                 # numeric input
@@ -109,7 +117,7 @@ ui <- navbarPage("Crime Rate in the U.S.A",
                                 
                                 # slider input
                                 sliderInput("slider2", h4("Year"),
-                                            min = 1975, max = 2014, value = c(1975,2014)),
+                                            min = 1975, max = 2014, value = c(1975,2014),sep=""),
                                 # checkbox input - pick crime type
                                 checkboxGroupInput("checkbox2",h4("States"),
                                                    choices=unique(crime$state),
@@ -117,11 +125,11 @@ ui <- navbarPage("Crime Rate in the U.S.A",
                    ),
                    # Showing the plot
                    mainPanel(
-                       h3("Overall Rating"),
+                       h3("Overall Rating of States According to Risk Scores"),
                        plotOutput("theplot1"),
-                       p("The larger the risk score is, the more dangerous the state is.
-                         The score is the mean of the product of real crime rate and the weight you assign"),
-                       h3("Real Record"),
+                       strong("The larger the risk score is, the more dangerous the state is.
+                         The score is the mean of the product of real crime rate and the standardized weight you assign"),
+                       h3("Distribution of Real Crime Records"),
                        plotOutput("theplot2"),
                        p("The plot shows the real record of crime rates."),
                        p("Note: The crime rate is calculated by dividing
@@ -147,6 +155,7 @@ server <- function(input, output) {
       ggplot() +
         # background map
         geom_polygon(data=map_usa, aes(x = long, y = lat, group = group),alpha=0.7) +
+        geom_text(data=label, aes(label=state,x=x,y=y),check_overlap=TRUE)+
         labs(x="Longitude",y="Latitude")+
         theme_classic()
       
@@ -163,7 +172,8 @@ server <- function(input, output) {
       geom_polygon(data=data, aes(x = long, y = lat, group = group, fill = Crime_Rate )) +
                      labs(x="Longitude",y="Latitude")+
                     scale_fill_distiller(palette="Blues",direction=1)+
-      theme_classic()
+      theme_classic()+
+      geom_text(data=label, aes(label=state,x=x,y=y),check_overlap=TRUE)
     }
     
 })
