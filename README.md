@@ -1,5 +1,9 @@
 # Milestone_532_new
 
+### The apps
+
+Please find the app [here](https://tinaqian2017.shinyapps.io/dsci_532_milestone/).
+
 ### Functionality
 
 If you are interested in the crime rate in the U.S.A, it is the app that helps you to discover that. In the "Map" page, you can visualize the geographical distribution of the crime rate by types and years. In the "Data Explore" page, you can assign weights to different crime types based on your personal concerns, to calculate your risk score for each state that has crime data recorded in the Marshall Violent Crime dataset.   
