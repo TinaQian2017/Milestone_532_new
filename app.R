@@ -59,9 +59,6 @@ mapdata<-full_join(mapindex,data)
 names(mapdata)[11:14]<-c('Homicides', 'Rape', 'Robbery', 'Aggravated_Assault')
 names(crime)[5:8]<-c('Homicides', 'Rape', 'Robbery', 'Aggravated_Assault')
 
-# prepare data to add labels in map
-label<-mapdata %>% group_by(state) %>% summarise(y=mean(lat),x=mean(long))
-label$state[48]<-"ND"
 
 
 # Define UI ----
@@ -85,8 +82,15 @@ ui <- navbarPage("Crime Rate in the U.S.A",
                             mainPanel(h3("Crime Rate in The U.S.A"),
                                       plotOutput("themap"),
                                       p("Note: The crime rate is calculated by dividing
-                         the number of crimes by population, recording the number of crime per 100k people.")
-                            )
+                         the number of crimes by population, recording the number of crime per 100k people.
+                                        And the states are colored by their average crime rate over time chosen. If you
+                                        choose multiple crime types, their rates will be summed up to show you the density of crimes in the state."),
+                                      br(),
+                                      strong("Acknowledgement"),
+                                      p("The app is built on the Marshall Violent Crime dataset. The data was collected from
+                                        city level, and some states did not have any data recorded by the dataset. Therefore,
+                                      you can see some grey in the map, where no crime data is available. Based on the available data, I group records from the same state together as a
+                                        representative as the crime rate in the state. "))
                             
                  )
                  ),       
@@ -99,9 +103,9 @@ ui <- navbarPage("Crime Rate in the U.S.A",
                                 h4("Weight for Crimes"),
                                 
                                 p("Assign weight to different type of crimes. Feel free to assign any 
-                                  values to different crime types since the weights will be standardized. However,
-                                 it is more institutive to sum the weights up to 1 or 100."),
-                                strong("The sum of weights should be 1"),
+                                  values to different crime types by typing numbers in, since the weights will be standardized. However,
+                                 it is more institutive to sum the weights up to 1 (the default setting)."),
+                                
                                 
                                 # numeric input
                                 numericInput("weightho", "Weight for Homicides",
@@ -128,10 +132,12 @@ ui <- navbarPage("Crime Rate in the U.S.A",
                        h3("Overall Rating of States According to Risk Scores"),
                        plotOutput("theplot1"),
                        strong("The larger the risk score is, the more dangerous the state is.
-                         The score is the mean of the product of real crime rate and the standardized weight you assign"),
+                         The score is the mean of the product of real crime rate and the standardized weight you assign.
+                              The states are ordered by their risk scores, with the safest states on the left and most dangerous
+                              states on the right."),
                        h3("Distribution of Real Crime Records"),
                        plotOutput("theplot2"),
-                       p("The plot shows the real record of crime rates."),
+                       p("The plot shows the real record of crime rates. The states are in the same order as the plot above."),
                        p("Note: The crime rate is calculated by dividing
                          the number of crimes by population, recording the number of crime per 100k people.")
                  )
@@ -150,12 +156,17 @@ server <- function(input, output) {
     data<-mapdata %>% 
       filter(year %in% input$slider1)
   
+    # prepare data to add labels in map
+    label<-mapdata %>% group_by(state) %>% summarise(y=mean(lat),x=mean(long))
+    hh<-label %>%filter(is.na(state)) %>% mutate(state="ND", x=-98.36) 
+    label_c<-rbind(label,hh)
+
     
     if (is.null(input$checkbox)){
       ggplot() +
         # background map
         geom_polygon(data=map_usa, aes(x = long, y = lat, group = group),alpha=0.7) +
-        geom_text(data=label, aes(label=state,x=x,y=y),check_overlap=TRUE)+
+        geom_text(data=label_c, aes(label=state,x=x,y=y),check_overlap=TRUE)+
         labs(x="Longitude",y="Latitude")+
         theme_classic()
       
@@ -173,7 +184,8 @@ server <- function(input, output) {
                      labs(x="Longitude",y="Latitude")+
                     scale_fill_distiller(palette="Blues",direction=1)+
       theme_classic()+
-      geom_text(data=label, aes(label=state,x=x,y=y),check_overlap=TRUE)
+      theme(legend.position="bottom")+
+      geom_text(data=label_c, aes(label=state,x=x,y=y),check_overlap=TRUE)
     }
     
 })
