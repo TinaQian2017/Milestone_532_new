@@ -45,11 +45,12 @@ crime<-data
 
 # get data to make the map
 library(maps)
+map_usa<-map_data("state")
 usa_states<-map_data("state")
 usa_states<-usa_states[-6]
 
 # need to reset wd here
-sabbr<-read.csv("https://raw.githubusercontent.com/TinaQian2017/532_milstone/master/states_abbr.csv",header = T)
+sabbr<-read.csv("https://raw.githubusercontent.com/TinaQian2017/Milestone_532_new/master/data/states_abbr.csv",header = T)
 sabbr$region<-as.character(sabbr$region)
 mapindex<-left_join(usa_states,sabbr)
 mapdata<-full_join(mapindex,data)
@@ -89,13 +90,13 @@ ui <- navbarPage("Crime Rate in the U.S.A",
                    sidebarPanel(width=4,
                                 h3("Choice of Inputs"),
                                 br(),
-                                h4("Weight for Homicides"),
+                                h4("Weight for Crimes"),
                                 
-                                p("Assign weight to different type of crimes"),
+                                p("Assign weight to different type of crimes. Feel free to assign "),
                                 strong("The sum of weights should be 1"),
                                 
                                 # numeric input
-                                numericInput("weightho", "",
+                                numericInput("weightho", "Weight for Homicides",
                                              
                                              min = 0, max = 1, value = 0.7, step = 0.05),
                                 numericInput("weightra", "Weight for Rape",
@@ -140,16 +141,30 @@ server <- function(input, output) {
     
     data<-mapdata %>% 
       filter(year %in% input$slider1)
+  
     
-    newdf=data%>%select(input$checkbox)
-    data$Crime_Rate=apply(newdf,1,function(x) sum(x))
-    
-    ggplot(data) +
-      geom_polygon(aes(x = long, y = lat, group = group, fill = Crime_Rate )) +
-                     labs(x="Longitude",y="Latitude")+
-                     scale_fill_distiller(palette="Blues",direction=1)+
-      theme_bw()
+    if (is.null(input$checkbox)){
+      ggplot() +
+        # background map
+        geom_polygon(data=map_usa, aes(x = long, y = lat, group = group),alpha=0.7) +
+        labs(x="Longitude",y="Latitude")+
+        theme_classic()
       
+    } else {
+      
+      newdf=data%>%select(input$checkbox)
+      data$Crime_Rate=apply(newdf,1,function(x) sum(x))
+      
+    ggplot() +
+    # background map
+      geom_polygon(data=map_usa, aes(x = long, y = lat, group = group),alpha=0.7) +
+      labs(x="Longitude",y="Latitude")+
+      # crime data layer
+      geom_polygon(data=data, aes(x = long, y = lat, group = group, fill = Crime_Rate )) +
+                     labs(x="Longitude",y="Latitude")+
+                    scale_fill_distiller(palette="Blues",direction=1)+
+      theme_classic()
+    }
     
 })
     
@@ -158,10 +173,12 @@ server <- function(input, output) {
         filter(year %in% input$slider2)%>%
         filter(state %in% input$checkbox2)
       
-      data2$Homicides<-data2$Homicides*input$weightho
-      data2$Rape<-data2$Rape*input$weightra
-      data2$Robbery<-data2$Robbery*input$weightro
-      data2$Aggravated_Assault<-data2$Aggravated_Assault*input$weightag
+      total_weight<-input$weightho+input$weightra+input$weightro+input$weightag
+      
+      data2$Homicides<-data2$Homicides*input$weightho/total_weight
+      data2$Rape<-data2$Rape*input$weightra/total_weight
+      data2$Robbery<-data2$Robbery*input$weightro/total_weight
+      data2$Aggravated_Assault<-data2$Aggravated_Assault*input$weightag/total_weight
       
       # calculate scores
       scores<-data2 %>% group_by(state)%>%summarise(mean=mean(Homicides)+mean(Rape)+mean(Robbery)+mean(Aggravated_Assault))
