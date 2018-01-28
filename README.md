@@ -12,5 +12,7 @@ If you are interested in the crime rate in the U.S.A, it is the app that helps y
 
 The app is made for people plan to visit the U.S.A so they can avoid dangerous places as their destination.
 ### Acknowledgement
-
-The Marshall Violent Crime dataset is used to build the app. More details about the dataset can be found [here](https://github.ubc.ca/ubc-mds-2017/DSCI_532_milestone1_qyue2014/tree/master/data/marshall).
+**Data**
+The Marshall Violent Crime dataset is used to build the app. More details about the dataset can be found [here](https://github.ubc.ca/ubc-mds-2017/DSCI_532_milestone1_qyue2014/tree/master/data/marshall). I used
+the data in `maps` package in R to draw the map of the United States. Moreover, I use information provided in the
+[Wikipedia](https://en.wikipedia.org/wiki/List_of_states_and_territories_of_the_United_States) to create the file "states_abbr.csv" in the data folder. 
