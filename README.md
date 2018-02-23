@@ -2,7 +2,7 @@
 
 ### The apps
 
-Please find the app [here](https://tinaqian2017.shinyapps.io/dsci_532_milestone/).
+Please find the app [here](https://tinaqian2017.shinyapps.io/milestone_532_new/).
 
 ### Functionality
 
