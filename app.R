@@ -7,7 +7,7 @@ library(forcats)
 # import data
 data<-read.csv("data/ucr_crime_1975_2015.csv")
 
-# exclude data I do not want
+library(rsconnect)# exclude data I do not want
 # I need ORI, year, department_name, and normalized crime data 
 data<-data[c(-4,-5,-6,-7,-8,-9,-16,-17)]
 
