@@ -5,7 +5,7 @@ library(forcats)
 # Data cleaning
 
 # import data
-data<-read.csv("https://raw.github.ubc.ca/ubc-mds-2017/DSCI_532_milestone1_qyue2014/master/data/marshall/ucr_crime_1975_2015.csv?token=AAADszx30g6sUEv5VEhvsCn44iJBnQOaks5ablAWwA%3D%3D")
+data<-read.csv("data/ucr_crime_1975_2015.csv")
 
 # exclude data I do not want
 # I need ORI, year, department_name, and normalized crime data 
